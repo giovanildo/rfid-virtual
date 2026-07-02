@@ -1,0 +1,6 @@
+target/
+*.class
+.idea/
+*.iml
+favorites.txt
+run.bat
