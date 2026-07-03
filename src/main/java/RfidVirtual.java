@@ -192,6 +192,7 @@ public class RfidVirtual extends Application {
     }
 
     private void addToHistory(String rfid) {
+        if (masterRfids.contains(rfid)) return;
         recentRfids.remove(rfid);
         recentRfids.addFirst(rfid);
         if (recentRfids.size() > MAX_RECENT) {
