@@ -5,4 +5,5 @@ target/
 *.jar
 dependency-reduced-pom.xml
 favorites.txt
+history.txt
 run.bat

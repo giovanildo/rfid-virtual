@@ -19,21 +19,26 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class RfidVirtual extends Application {
 
+    private static final int MAX_RECENT = 10;
+
     private TextField txtRfid;
     private FlowPane masterPane;
-    private FlowPane testPane;
+    private FlowPane recentPane;
     private Label lblPool;
     private Robot robot;
     private Path favoritesFile;
+    private Path historyFile;
 
     private List<String> masterRfids = new ArrayList<>();
-    private List<String> testRfids = new ArrayList<>();
     private List<String> poolRfids = new ArrayList<>();
+    private List<String> recentRfids = new ArrayList<>();
 
     @Override
     public void start(Stage stage) throws Exception {
         robot = new Robot();
-        favoritesFile = Path.of(System.getProperty("user.dir"), "favorites.txt");
+        String baseDir = System.getProperty("user.dir");
+        favoritesFile = Path.of(baseDir, "favorites.txt");
+        historyFile = Path.of(baseDir, "history.txt");
 
         txtRfid = new TextField();
         txtRfid.setPromptText("Número do cartão RFID");
@@ -64,22 +69,22 @@ public class RfidVirtual extends Application {
 
         Label lblMaster = new Label("Master:");
         lblMaster.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
-        lblMaster.setMinWidth(50);
+        lblMaster.setMinWidth(55);
         masterPane = new FlowPane(6, 4);
         HBox masterRow = new HBox(8, lblMaster, masterPane);
         masterRow.setAlignment(Pos.CENTER_LEFT);
 
-        Label lblTest = new Label("Testes:");
-        lblTest.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
-        lblTest.setMinWidth(50);
-        testPane = new FlowPane(6, 4);
-        HBox testRow = new HBox(8, lblTest, testPane);
-        testRow.setAlignment(Pos.CENTER_LEFT);
+        Label lblRecent = new Label("Recentes:");
+        lblRecent.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
+        lblRecent.setMinWidth(55);
+        recentPane = new FlowPane(6, 4);
+        HBox recentRow = new HBox(8, lblRecent, recentPane);
+        recentRow.setAlignment(Pos.CENTER_LEFT);
 
         lblPool = new Label();
         lblPool.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
 
-        VBox root = new VBox(8, lblTitle, inputRow, masterRow, testRow, lblPool);
+        VBox root = new VBox(8, lblTitle, inputRow, masterRow, recentRow, lblPool);
         root.setPadding(new Insets(14));
         root.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #cbd5e1; "
                 + "-fx-border-radius: 8; -fx-background-radius: 8;");
@@ -93,12 +98,15 @@ public class RfidVirtual extends Application {
         stage.show();
 
         loadFavorites();
+        loadHistory();
         txtRfid.requestFocus();
     }
 
     private void sendRfid() {
         String rfid = txtRfid.getText().trim();
         if (rfid.isEmpty()) return;
+
+        addToHistory(rfid);
 
         Stage myStage = (Stage) txtRfid.getScene().getWindow();
         myStage.setIconified(true);
@@ -141,7 +149,6 @@ public class RfidVirtual extends Application {
 
     private void loadFavorites() {
         masterRfids.clear();
-        testRfids.clear();
         poolRfids.clear();
 
         try {
@@ -155,14 +162,12 @@ public class RfidVirtual extends Application {
                 if (trimmed.startsWith("#")) {
                     String header = trimmed.substring(1).trim().toLowerCase();
                     if (header.contains("master")) section = "master";
-                    else if (header.contains("test")) section = "testes";
                     else section = "pool";
                     continue;
                 }
 
                 switch (section) {
                     case "master" -> masterRfids.add(trimmed);
-                    case "testes" -> testRfids.add(trimmed);
                     default -> poolRfids.add(trimmed);
                 }
             }
@@ -170,9 +175,33 @@ public class RfidVirtual extends Application {
 
         renderSection(masterPane, masterRfids,
                 "-fx-background-color: #fecaca; -fx-text-fill: #991b1b;");
-        renderSection(testPane, testRfids,
-                "-fx-background-color: #bfdbfe; -fx-text-fill: #1e3a8a;");
         lblPool.setText("Pool: " + poolRfids.size() + " RFIDs disponíveis para aleatório");
+    }
+
+    private void loadHistory() {
+        recentRfids.clear();
+        try {
+            if (Files.exists(historyFile)) {
+                recentRfids = new ArrayList<>(Files.readAllLines(historyFile).stream()
+                        .filter(s -> !s.isBlank())
+                        .toList());
+            }
+        } catch (IOException ignored) {}
+        renderSection(recentPane, recentRfids,
+                "-fx-background-color: #bfdbfe; -fx-text-fill: #1e3a8a;");
+    }
+
+    private void addToHistory(String rfid) {
+        recentRfids.remove(rfid);
+        recentRfids.addFirst(rfid);
+        if (recentRfids.size() > MAX_RECENT) {
+            recentRfids = new ArrayList<>(recentRfids.subList(0, MAX_RECENT));
+        }
+        try {
+            Files.writeString(historyFile, String.join("\n", recentRfids) + "\n");
+        } catch (IOException ignored) {}
+        renderSection(recentPane, recentRfids,
+                "-fx-background-color: #bfdbfe; -fx-text-fill: #1e3a8a;");
     }
 
     private void renderSection(FlowPane pane, List<String> rfids, String colorStyle) {
