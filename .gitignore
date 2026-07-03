@@ -2,5 +2,7 @@ target/
 *.class
 .idea/
 *.iml
+*.jar
+dependency-reduced-pom.xml
 favorites.txt
 run.bat
