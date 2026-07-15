@@ -3,13 +3,33 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.ArcType;
 import javafx.stage.Stage;
+import javafx.stage.Screen;
 
 import java.awt.Robot;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
+import java.awt.PopupMenu;
+import java.awt.MenuItem;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.awt.BasicStroke;
+import java.awt.RenderingHints;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.geom.Arc2D;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,19 +42,24 @@ public class RfidVirtual extends Application {
     private static final int MAX_RECENT = 10;
 
     private TextField txtRfid;
-    private FlowPane masterPane;
+    private FlowPane masterAcessoPane;
+    private FlowPane masterRecargaPane;
     private FlowPane recentPane;
     private Label lblPool;
     private Robot robot;
     private Path favoritesFile;
     private Path historyFile;
 
-    private List<String> masterRfids = new ArrayList<>();
+    private List<String> masterAcessoRfids = new ArrayList<>();
+    private List<String> masterRecargaRfids = new ArrayList<>();
     private List<String> poolRfids = new ArrayList<>();
     private List<String> recentRfids = new ArrayList<>();
+    private Stage mainStage;
 
     @Override
     public void start(Stage stage) throws Exception {
+        this.mainStage = stage;
+        Platform.setImplicitExit(false);
         robot = new Robot();
         String baseDir = System.getProperty("user.dir");
         favoritesFile = Path.of(baseDir, "favorites.txt");
@@ -46,8 +71,7 @@ public class RfidVirtual extends Application {
         txtRfid.setPrefWidth(200);
 
         Button btnSend = new Button("Enviar");
-        btnSend.setStyle("-fx-font-size: 14px; -fx-background-color: #2563eb; -fx-text-fill: white; "
-                + "-fx-padding: 6 18; -fx-background-radius: 6; -fx-cursor: hand;");
+        btnSend.setStyle("-fx-font-size: 14px; -fx-background-color: #2563eb; -fx-text-fill: white; -fx-padding: 6 18; -fx-background-radius: 6; -fx-cursor: hand;");
         btnSend.setOnAction(e -> sendRfid());
         btnSend.setFocusTraversable(false);
 
@@ -64,19 +88,26 @@ public class RfidVirtual extends Application {
         HBox inputRow = new HBox(8, txtRfid, btnSend, btnRandom);
         inputRow.setAlignment(Pos.CENTER_LEFT);
 
-        Label lblTitle = new Label("RFID Virtual");
+        Label lblTitle = new Label("RFID Virtual (Expandido)");
         lblTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #64748b;");
 
-        Label lblMaster = new Label("Master:");
-        lblMaster.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
-        lblMaster.setMinWidth(55);
-        masterPane = new FlowPane(6, 4);
-        HBox masterRow = new HBox(8, lblMaster, masterPane);
-        masterRow.setAlignment(Pos.CENTER_LEFT);
+        Label lblMasterAcesso = new Label("M. Acesso:");
+        lblMasterAcesso.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #dc2626;");
+        lblMasterAcesso.setMinWidth(65);
+        masterAcessoPane = new FlowPane(6, 4);
+        HBox masterAcessoRow = new HBox(8, lblMasterAcesso, masterAcessoPane);
+        masterAcessoRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label lblMasterRecarga = new Label("M. Recarga:");
+        lblMasterRecarga.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #d97706;");
+        lblMasterRecarga.setMinWidth(65);
+        masterRecargaPane = new FlowPane(6, 4);
+        HBox masterRecargaRow = new HBox(8, lblMasterRecarga, masterRecargaPane);
+        masterRecargaRow.setAlignment(Pos.CENTER_LEFT);
 
         Label lblRecent = new Label("Recentes:");
         lblRecent.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
-        lblRecent.setMinWidth(55);
+        lblRecent.setMinWidth(65);
         recentPane = new FlowPane(6, 4);
         HBox recentRow = new HBox(8, lblRecent, recentPane);
         recentRow.setAlignment(Pos.CENTER_LEFT);
@@ -84,21 +115,101 @@ public class RfidVirtual extends Application {
         lblPool = new Label();
         lblPool.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
 
-        VBox root = new VBox(8, lblTitle, inputRow, masterRow, recentRow, lblPool);
-        root.setPadding(new Insets(14));
-        root.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #cbd5e1; "
-                + "-fx-border-radius: 8; -fx-background-radius: 8;");
+        Button btnCollapse = new Button("➖ Recolher");
+        btnCollapse.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand;");
+        HBox titleRow = new HBox(lblTitle, new Region(), btnCollapse);
+        HBox.setHgrow(titleRow.getChildren().get(1), Priority.ALWAYS);
 
-        Scene scene = new Scene(root);
+        VBox fullRoot = new VBox(10, titleRow, inputRow, masterAcessoRow, masterRecargaRow, recentRow, lblPool);
+        fullRoot.setPadding(new Insets(14));
+        fullRoot.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #cbd5e1; -fx-border-radius: 12; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+
+        // --- MINI WIDGET BAR ---
+        Button btnMiniAcesso = new Button("M. Acesso");
+        btnMiniAcesso.setStyle("-fx-background-color: #fecaca; -fx-text-fill: #991b1b; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 12px; -fx-padding: 6 12;");
+        btnMiniAcesso.setOnAction(e -> {
+            if (!masterAcessoRfids.isEmpty()) {
+                txtRfid.setText(masterAcessoRfids.get(0));
+                sendRfid();
+            }
+        });
+
+        Button btnMiniRecarga = new Button("M. Recarga");
+        btnMiniRecarga.setStyle("-fx-background-color: #fef3c7; -fx-text-fill: #92400e; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 12px; -fx-padding: 6 12;");
+        btnMiniRecarga.setOnAction(e -> {
+            if (!masterRecargaRfids.isEmpty()) {
+                txtRfid.setText(masterRecargaRfids.get(0));
+                sendRfid();
+            }
+        });
+
+        Button btnMiniRandom = new Button("🎲 Aleatório");
+        btnMiniRandom.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #475569; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 12px; -fx-padding: 6 12;");
+        btnMiniRandom.setOnAction(e -> pickRandomAndSend());
+        
+        Button btnExpand = new Button("➕");
+        btnExpand.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand; -fx-font-weight: bold;");
+        
+        Button btnClose = new Button("❌");
+        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;");
+        btnClose.setOnAction(e -> stage.hide());
+        
+        Label dragHandle = new Label(" ⣿ ");
+        dragHandle.setStyle("-fx-text-fill: #94a3b8; -fx-cursor: move; -fx-font-size: 16px;");
+
+        HBox miniBar = new HBox(6, dragHandle, btnMiniAcesso, btnMiniRecarga, btnMiniRandom, new Region(), btnExpand, btnClose);
+        miniBar.setAlignment(Pos.CENTER);
+        miniBar.setPadding(new Insets(6, 6, 6, 0));
+        miniBar.setStyle("-fx-background-color: #ffffff; -fx-border-color: #cbd5e1; -fx-border-radius: 12; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+
+        StackPane mainRoot = new StackPane(miniBar);
+        mainRoot.setStyle("-fx-background-color: transparent; -fx-padding: 10;");
+
+        btnExpand.setOnAction(e -> {
+            mainRoot.getChildren().setAll(fullRoot);
+            stage.sizeToScene();
+        });
+        
+        btnCollapse.setOnAction(e -> {
+            mainRoot.getChildren().setAll(miniBar);
+            stage.sizeToScene();
+        });
+
+        final double[] xOffset = new double[1];
+        final double[] yOffset = new double[1];
+        
+        mainRoot.setOnMousePressed(event -> {
+            xOffset[0] = event.getSceneX();
+            yOffset[0] = event.getSceneY();
+        });
+        mainRoot.setOnMouseDragged(event -> {
+            stage.setX(event.getScreenX() - xOffset[0]);
+            stage.setY(event.getScreenY() - yOffset[0]);
+        });
+
+        Scene scene = new Scene(mainRoot, Color.TRANSPARENT);
         stage.setScene(scene);
+        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
         stage.setTitle("RFID Virtual");
+        stage.getIcons().add(createRfidIcon());
         stage.setAlwaysOnTop(true);
-        stage.setWidth(480);
-        stage.setHeight(220);
-        stage.show();
+        
+        stage.setOnCloseRequest(e -> {
+            e.consume();
+            stage.hide();
+        });
+        setupSystemTray(stage);
 
         loadFavorites();
         loadHistory();
+        
+        stage.setOnShown(e -> {
+            javafx.geometry.Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+            stage.setX(screenBounds.getMaxX() - stage.getWidth() - 10);
+            stage.setY(screenBounds.getMaxY() - stage.getHeight() - 10);
+        });
+
+        stage.show();
         txtRfid.requestFocus();
     }
 
@@ -108,8 +219,7 @@ public class RfidVirtual extends Application {
 
         addToHistory(rfid);
 
-        Stage myStage = (Stage) txtRfid.getScene().getWindow();
-        myStage.setIconified(true);
+        mainStage.setIconified(true);
 
         new Thread(() -> {
             try {
@@ -120,10 +230,12 @@ public class RfidVirtual extends Application {
 
                 Thread.sleep(500);
                 Platform.runLater(() -> {
-                    myStage.setIconified(false);
-                    myStage.toFront();
-                    txtRfid.selectAll();
-                    txtRfid.requestFocus();
+                    mainStage.setIconified(false);
+                    mainStage.toFront();
+                    if (txtRfid.getScene() != null) {
+                        txtRfid.selectAll();
+                        txtRfid.requestFocus();
+                    }
                 });
             } catch (InterruptedException ignored) {}
         }, "rfid-send").start();
@@ -148,7 +260,8 @@ public class RfidVirtual extends Application {
     }
 
     private void loadFavorites() {
-        masterRfids.clear();
+        masterAcessoRfids.clear();
+        masterRecargaRfids.clear();
         poolRfids.clear();
 
         try {
@@ -161,20 +274,32 @@ public class RfidVirtual extends Application {
 
                 if (trimmed.startsWith("#")) {
                     String header = trimmed.substring(1).trim().toLowerCase();
-                    if (header.contains("master")) section = "master";
-                    else section = "pool";
+                    if (header.contains("acesso")) {
+                        section = "acesso";
+                    } else if (header.contains("recarga")) {
+                        section = "recarga";
+                    } else {
+                        section = "pool";
+                    }
                     continue;
                 }
 
                 switch (section) {
-                    case "master" -> masterRfids.add(trimmed);
+                    case "acesso" -> masterAcessoRfids.add(trimmed);
+                    case "recarga" -> masterRecargaRfids.add(trimmed);
                     default -> poolRfids.add(trimmed);
                 }
             }
         } catch (IOException ignored) {}
 
-        renderSection(masterPane, masterRfids,
+        // Renderiza Master Acesso (Vermelho)
+        renderSection(masterAcessoPane, masterAcessoRfids,
                 "-fx-background-color: #fecaca; -fx-text-fill: #991b1b;");
+
+        // Renderiza Master Recarga (Laranja/Amarelo escuro)
+        renderSection(masterRecargaPane, masterRecargaRfids,
+                "-fx-background-color: #fef3c7; -fx-text-fill: #92400e;");
+
         lblPool.setText("Pool: " + poolRfids.size() + " RFIDs disponíveis para aleatório");
     }
 
@@ -192,7 +317,9 @@ public class RfidVirtual extends Application {
     }
 
     private void addToHistory(String rfid) {
-        if (masterRfids.contains(rfid)) return;
+        // Se já for um cartão master, não joga para os recentes
+        if (masterAcessoRfids.contains(rfid) || masterRecargaRfids.contains(rfid)) return;
+
         recentRfids.remove(rfid);
         recentRfids.addFirst(rfid);
         if (recentRfids.size() > MAX_RECENT) {
@@ -219,6 +346,94 @@ public class RfidVirtual extends Application {
             });
             pane.getChildren().add(btn);
         }
+    }
+
+    private Image createRfidIcon() {
+        int size = 64;
+        Canvas canvas = new Canvas(size, size);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+
+        gc.setFill(Color.web("#2563eb"));
+        gc.fillRoundRect(4, 12, 56, 40, 8, 8);
+
+        gc.setStroke(Color.WHITE);
+        gc.setLineWidth(2.5);
+        gc.strokeArc(34, 22, 14, 14, -45, 90, ArcType.OPEN);
+        gc.strokeArc(30, 18, 22, 22, -45, 90, ArcType.OPEN);
+        gc.strokeArc(26, 14, 30, 30, -45, 90, ArcType.OPEN);
+
+        gc.setFill(Color.WHITE);
+        gc.fillOval(36, 28, 5, 5);
+
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.TRANSPARENT);
+        return canvas.snapshot(params, new WritableImage(size, size));
+    }
+
+    private void setupSystemTray(Stage stage) {
+        if (!SystemTray.isSupported()) return;
+
+        SystemTray tray = SystemTray.getSystemTray();
+        java.awt.Image image = createAwtTrayIcon();
+
+        PopupMenu popup = new PopupMenu();
+        
+        MenuItem openItem = new MenuItem("Abrir");
+        openItem.addActionListener(e -> Platform.runLater(() -> {
+            stage.show();
+            stage.toFront();
+        }));
+        
+        MenuItem exitItem = new MenuItem("Sair");
+        exitItem.addActionListener(e -> System.exit(0));
+
+        popup.add(openItem);
+        popup.addSeparator();
+        popup.add(exitItem);
+
+        TrayIcon trayIcon = new TrayIcon(image, "RFID Virtual", popup);
+        trayIcon.setImageAutoSize(true);
+
+        trayIcon.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
+                    Platform.runLater(() -> {
+                        stage.show();
+                        stage.toFront();
+                    });
+                }
+            }
+        });
+
+        try {
+            tray.add(trayIcon);
+            System.out.println("✅ [RFID Virtual] Ícone adicionado à Bandeja do Sistema (System Tray) com sucesso!");
+            System.out.println("👉 Feche esta janela no 'X' e ela continuará rodando perto do relógio do Windows.");
+        } catch (java.awt.AWTException e) {
+            System.out.println("❌ Erro ao adicionar ícone na bandeja: " + e.getMessage());
+        }
+    }
+
+    private java.awt.Image createAwtTrayIcon() {
+        int size = 16;
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = img.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        g2.setColor(java.awt.Color.decode("#2563eb"));
+        g2.fill(new RoundRectangle2D.Float(1, 3, 14, 10, 2, 2));
+
+        g2.setColor(java.awt.Color.WHITE);
+        g2.setStroke(new BasicStroke(1.0f));
+        g2.draw(new Arc2D.Float(8.5f, 5.5f, 3.5f, 3.5f, -45, 90, Arc2D.OPEN));
+        g2.draw(new Arc2D.Float(7.5f, 4.5f, 5.5f, 5.5f, -45, 90, Arc2D.OPEN));
+        g2.draw(new Arc2D.Float(6.5f, 3.5f, 7.5f, 7.5f, -45, 90, Arc2D.OPEN));
+
+        g2.fillOval(9, 7, 2, 2);
+        g2.dispose();
+        
+        return img;
     }
 
     public static void main(String[] args) {

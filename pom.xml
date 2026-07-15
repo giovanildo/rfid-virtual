@@ -6,7 +6,7 @@
 
     <groupId>br.edu.unilab</groupId>
     <artifactId>rfid-virtual</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>RFID Virtual</name>

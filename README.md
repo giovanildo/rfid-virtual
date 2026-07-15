@@ -9,23 +9,26 @@ Leitor RFID virtual para testes. Simula um leitor físico keyboard wedge — inj
 
 ## Como usar
 
-1. Abra o projeto no IntelliJ (File → Open → pasta `rfid-virtual`)
-2. Rode `Launcher.main()`
-3. A janela fica sempre por cima (always on top)
-4. Digite o RFID e pressione Enter, ou clique **Enviar**
-5. O app minimiza, injeta as teclas na janela anterior e volta
+1. Abra o projeto no IntelliJ (File → Open → pasta `rfid-virtual`) e rode `Launcher.main()`, ou execute o fat JAR (`build.bat` → `rfid-virtual.jar`)
+2. O app abre como **mini widget** no canto inferior direito, sempre por cima (always on top):
+   - **M. Acesso** / **M. Recarga** → envia o cartão master da seção correspondente
+   - **🎲 Aleatório** → sorteia um RFID do pool e envia
+   - **➕** expande para a janela completa (campo de texto, recentes); **➖ Recolher** volta ao mini
+   - Arraste pela alça ⣿ (ou qualquer área) para reposicionar
+3. Na janela expandida, digite o RFID e pressione Enter ou clique **Enviar**
+4. Ao enviar, o app minimiza, injeta as teclas na janela anterior e volta
+5. Fechar a janela (❌) **não encerra o app** — ele fica na bandeja do sistema (perto do relógio). Duplo clique no ícone reabre; para encerrar, clique direito → **Sair**
 
 ## Favoritos
 
 Copie `favorites.example.txt` para `favorites.txt` e adicione os RFIDs:
 
 ```
-#Master
+#Master Acesso
 0666885278
 
-#Testes
+#Master Recarga
 2023097202
-3574806287
 
 #Demais
 0167978640
@@ -34,17 +37,23 @@ Copie `favorites.example.txt` para `favorites.txt` e adicione os RFIDs:
 
 | Seção | Cor | Função |
 |---|---|---|
-| `#Master` | Vermelho | Cartões master (operador) |
-| `#Testes` | Azul | Cartões de teste fixos |
-| `#Demais` | -- | Pool para o botão aleatório |
+| `#Master Acesso` | Vermelho | Cartão master do terminal de acesso |
+| `#Master Recarga` | Laranja | Cartão master do guichê de recarga |
+| Demais seções (`#Testes`, `#Demais`, ...) | — | Pool para o botão aleatório |
 
-- **Clique** num botão Master ou Teste → envia direto
-- **🎲 Aleatório** → sorteia um RFID da seção `#Demais` e envia
-- `favorites.txt` está no `.gitignore`
+- O cabeçalho da seção é reconhecido por conter a palavra **acesso** ou **recarga**; qualquer outro vai para o pool
+- **Clique** num botão master → envia direto
+- Cartões enviados aparecem em **Recentes** (últimos 10; masters não entram)
+- `favorites.txt` e `history.txt` estão no `.gitignore` (contêm RFIDs reais — não versionar)
+
+> ⚠️ **Migração da v1.1.0**: a seção antiga `#Master` não é mais reconhecida — renomeie para `#Master Acesso`.
 
 ## Build
 
 ```bash
 mvn compile
 mvn exec:java -Dexec.mainClass=Launcher
+
+# fat JAR (gera rfid-virtual.jar na raiz)
+build.bat
 ```

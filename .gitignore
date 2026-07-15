@@ -6,4 +6,5 @@ target/
 dependency-reduced-pom.xml
 favorites.txt
 history.txt
+*.csv
 run.bat
