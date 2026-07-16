@@ -24,6 +24,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Adicionadas `net.java.dev.jna:jna` e `jna-platform` 5.14.0 (User32) — fat JAR passa de
   ~9MB para ~12MB pelos binários nativos da JNA
 
+### Limitações conhecidas
+- Se a aplicação anterior estiver **minimizada** no momento do envio, o foco não é
+  restaurado (usa apenas `SetForegroundWindow`; `IsIconic`/`ShowWindow` não implementados
+  — `IsIconic` não existe na interface `User32` da JNA). Detalhes e fix proposto em
+  `PONTOS-ATENCAO.md` (item 3)
+
 ## [1.2.0] - 2026-07-15
 
 ### Adicionado
