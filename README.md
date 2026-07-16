@@ -16,7 +16,7 @@ Leitor RFID virtual para testes. Simula um leitor físico keyboard wedge — inj
    - **➕** expande para a janela completa (campo de texto, recentes); **➖ Recolher** volta ao mini
    - Arraste pela alça ⣿ (ou qualquer área) para reposicionar
 3. Na janela expandida, digite o RFID e pressione Enter ou clique **Enviar**
-4. Ao enviar, o app minimiza, injeta as teclas na janela anterior e volta
+4. Ao enviar, o app **devolve o foco para a aplicação em que você estava** e injeta as teclas lá — a janela do RFID Virtual continua visível no topo, sem roubar o foco (Windows). Em outros sistemas, cai no comportamento antigo (minimiza → digita → restaura)
 5. Fechar a janela (❌) **não encerra o app** — ele fica na bandeja do sistema (perto do relógio). Duplo clique no ícone reabre; para encerrar, clique direito → **Sair**
 
 ## Favoritos

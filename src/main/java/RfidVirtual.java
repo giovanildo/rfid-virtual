@@ -30,6 +30,11 @@ import java.awt.geom.Arc2D;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+
+import com.sun.jna.platform.win32.User32;
+import com.sun.jna.platform.win32.WinDef.HWND;
+import com.sun.jna.ptr.IntByReference;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +45,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RfidVirtual extends Application {
 
     private static final int MAX_RECENT = 10;
+    private static final boolean IS_WINDOWS =
+            System.getProperty("os.name", "").toLowerCase().contains("win");
 
     private TextField txtRfid;
     private FlowPane masterAcessoPane;
@@ -56,11 +63,18 @@ public class RfidVirtual extends Application {
     private List<String> recentRfids = new ArrayList<>();
     private Stage mainStage;
 
+    /** Última janela externa (de outro processo) que teve o foco — alvo para devolver o foco. */
+    private volatile HWND lastForegroundHwnd;
+    private long ownPid;
+    private java.util.Timer focusTracker;
+
     @Override
     public void start(Stage stage) throws Exception {
         this.mainStage = stage;
         Platform.setImplicitExit(false);
         robot = new Robot();
+        ownPid = ProcessHandle.current().pid();
+        if (IS_WINDOWS) startForegroundTracker();
         String baseDir = System.getProperty("user.dir");
         favoritesFile = Path.of(baseDir, "favorites.txt");
         historyFile = Path.of(baseDir, "history.txt");
@@ -219,26 +233,71 @@ public class RfidVirtual extends Application {
 
         addToHistory(rfid);
 
-        mainStage.setIconified(true);
+        final HWND target = lastForegroundHwnd;
+        final boolean hasTarget = IS_WINDOWS && target != null;
+
+        // Sem alvo (não-Windows ou sem janela anterior conhecida): fallback antigo
+        // — minimiza para liberar o foco e restaura a própria janela depois.
+        if (!hasTarget) mainStage.setIconified(true);
 
         new Thread(() -> {
             try {
-                Thread.sleep(300);
+                if (hasTarget) {
+                    // Devolve o foco à aplicação em que o usuário estava antes de clicar.
+                    // Só é permitido porque, no momento do clique, NÓS somos o processo
+                    // em foreground — o Windows autoriza SetForegroundWindow nesse caso.
+                    restoreForeground(target);
+                    Thread.sleep(120);
+                } else {
+                    Thread.sleep(300);
+                }
+
                 typeString(rfid);
                 robot.keyPress(KeyEvent.VK_ENTER);
                 robot.keyRelease(KeyEvent.VK_ENTER);
 
-                Thread.sleep(500);
-                Platform.runLater(() -> {
-                    mainStage.setIconified(false);
-                    mainStage.toFront();
-                    if (txtRfid.getScene() != null) {
-                        txtRfid.selectAll();
-                        txtRfid.requestFocus();
-                    }
-                });
+                if (!hasTarget) {
+                    Thread.sleep(500);
+                    Platform.runLater(() -> {
+                        mainStage.setIconified(false);
+                        mainStage.toFront();
+                        if (txtRfid.getScene() != null) {
+                            txtRfid.selectAll();
+                            txtRfid.requestFocus();
+                        }
+                    });
+                }
+                // Com alvo: NÃO trazemos a janela de volta — o foco fica na app de destino.
             } catch (InterruptedException ignored) {}
         }, "rfid-send").start();
+    }
+
+    /**
+     * Poller que memoriza, a cada 150ms, qual janela de OUTRO processo está em foco.
+     * No instante em que o usuário clica num botão do RFID Virtual, {@link #lastForegroundHwnd}
+     * já guarda a janela anterior — para onde o foco será devolvido no envio.
+     */
+    private void startForegroundTracker() {
+        focusTracker = new java.util.Timer("fg-tracker", true);
+        focusTracker.scheduleAtFixedRate(new java.util.TimerTask() {
+            @Override public void run() {
+                try {
+                    User32 user32 = User32.INSTANCE;
+                    HWND hwnd = user32.GetForegroundWindow();
+                    if (hwnd == null) return;
+                    IntByReference pidRef = new IntByReference();
+                    user32.GetWindowThreadProcessId(hwnd, pidRef);
+                    if (pidRef.getValue() != ownPid) {
+                        lastForegroundHwnd = hwnd;
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }, 0, 150);
+    }
+
+    /** Traz a janela alvo para o foreground (a app em que o usuário estava). */
+    private void restoreForeground(HWND hwnd) {
+        User32.INSTANCE.SetForegroundWindow(hwnd);
     }
 
     private void pickRandomAndSend() {

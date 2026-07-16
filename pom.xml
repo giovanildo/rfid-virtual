@@ -6,7 +6,7 @@
 
     <groupId>br.edu.unilab</groupId>
     <artifactId>rfid-virtual</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
     <packaging>jar</packaging>
 
     <name>RFID Virtual</name>
@@ -24,6 +24,17 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
+        </dependency>
+        <!-- Win32: rastrear/restaurar a janela em foco (devolver foco à app anterior) -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.14.0</version>
         </dependency>
     </dependencies>
 

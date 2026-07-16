@@ -3,6 +3,27 @@
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [1.3.0] - 2026-07-16
+
+### Adicionado
+- **Devolução de foco à aplicação anterior** — ao clicar em qualquer botão de envio
+  (M. Acesso, M. Recarga, 🎲 Aleatório, Enviar, recentes), o foco volta para a janela
+  em que o usuário estava antes de clicar, e é lá que o RFID é digitado
+- Rastreador de foreground (Win32 via JNA): um poller de 150ms memoriza a última janela
+  de **outro processo** que teve o foco (compara o PID com o do próprio app). No envio,
+  `SetForegroundWindow` devolve o foco a essa janela antes de injetar as teclas
+
+### Alterado
+- O envio **não minimiza mais** a própria janela nem a traz de volta ao foreground —
+  o foco permanece na aplicação de destino. A janela do RFID Virtual continua visível
+  no topo (always-on-top), apenas sem o foco
+- **Fallback** para não-Windows (ou quando nenhuma janela anterior é conhecida):
+  mantém o comportamento antigo (minimiza → digita → restaura)
+
+### Dependências
+- Adicionadas `net.java.dev.jna:jna` e `jna-platform` 5.14.0 (User32) — fat JAR passa de
+  ~9MB para ~12MB pelos binários nativos da JNA
+
 ## [1.2.0] - 2026-07-15
 
 ### Adicionado
