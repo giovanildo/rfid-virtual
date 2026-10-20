@@ -89,7 +89,7 @@ public class RfidVirtual extends Application {
         btnSend.setOnAction(e -> sendRfid());
         btnSend.setFocusTraversable(false);
 
-        Button btnRandom = new Button("🎲 Aleatório");
+        Button btnRandom = new Button("Aleatório");
         btnRandom.setTooltip(new Tooltip("RFID aleatório do pool"));
         btnRandom.setStyle("-fx-font-size: 13px; -fx-padding: 6 14; -fx-background-radius: 6; -fx-cursor: hand;");
         btnRandom.setOnAction(e -> pickRandomAndSend());
@@ -129,9 +129,13 @@ public class RfidVirtual extends Application {
         lblPool = new Label();
         lblPool.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
 
-        Button btnCollapse = new Button("➖ Recolher");
+        Button btnCollapse = new Button("− Recolher");
         btnCollapse.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand;");
-        HBox titleRow = new HBox(lblTitle, new Region(), btnCollapse);
+        Button btnCloseFull = new Button("×");
+        btnCloseFull.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 6;");
+        btnCloseFull.setOnAction(e -> closeWindow());
+        HBox titleRow = new HBox(lblTitle, new Region(), btnCollapse, btnCloseFull);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(titleRow.getChildren().get(1), Priority.ALWAYS);
 
         VBox fullRoot = new VBox(10, titleRow, inputRow, masterAcessoRow, masterRecargaRow, recentRow, lblPool);
@@ -157,19 +161,16 @@ public class RfidVirtual extends Application {
             }
         });
 
-        Button btnMiniRandom = new Button("🎲 Aleatório");
+        Button btnMiniRandom = new Button("Aleatório");
         btnMiniRandom.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #475569; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 12px; -fx-padding: 6 12;");
         btnMiniRandom.setOnAction(e -> pickRandomAndSend());
         
-        Button btnExpand = new Button("➕");
-        btnExpand.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand; -fx-font-weight: bold;");
+        Button btnExpand = new Button("+");
+        btnExpand.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-size: 16px; -fx-padding: 0 6;");
         
-        Button btnClose = new Button("❌");
-        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;");
-        btnClose.setOnAction(e -> {
-            // Sem bandeja, esconder a janela deixaria o processo órfão — encerra de vez.
-            if (trayInstalled) stage.hide(); else Platform.exit();
-        });
+        Button btnClose = new Button("×");
+        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 6;");
+        btnClose.setOnAction(e -> closeWindow());
         
         Label dragHandle = new Label(" ⣿ ");
         dragHandle.setStyle("-fx-text-fill: #94a3b8; -fx-cursor: move; -fx-font-size: 16px;");
@@ -435,6 +436,11 @@ public class RfidVirtual extends Application {
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.TRANSPARENT);
         return canvas.snapshot(params, new WritableImage(size, size));
+    }
+
+    /** Fecha a janela: esconde na bandeja se houver; senão encerra (evita processo órfão). */
+    private void closeWindow() {
+        if (trayInstalled) mainStage.hide(); else Platform.exit();
     }
 
     /**
