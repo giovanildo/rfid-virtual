@@ -12,12 +12,12 @@ Leitor RFID virtual para testes. Simula um leitor físico keyboard wedge — inj
 1. Abra o projeto no IntelliJ (File → Open → pasta `rfid-virtual`) e rode `Launcher.main()`, ou execute o fat JAR (`build.bat` → `rfid-virtual.jar`)
 2. O app abre como **mini widget** no canto inferior direito, sempre por cima (always on top):
    - **M. Acesso** / **M. Recarga** → envia o cartão master da seção correspondente
-   - **🎲 Aleatório** → sorteia um RFID do pool e envia
-   - **➕** expande para a janela completa (campo de texto, recentes); **➖ Recolher** volta ao mini
+   - **Aleatório** → sorteia um RFID do pool e envia
+   - **+** expande para a janela completa (campo de texto, recentes); **− Recolher** volta ao mini
    - Arraste pela alça ⣿ (ou qualquer área) para reposicionar
 3. Na janela expandida, digite o RFID e pressione Enter ou clique **Enviar**
 4. Ao enviar, o app **devolve o foco para a aplicação em que você estava** e injeta as teclas lá — a janela do RFID Virtual continua visível no topo, sem roubar o foco (Windows). Em outros sistemas, cai no comportamento antigo (minimiza → digita → restaura)
-5. Fechar a janela (❌) **não encerra o app** — ele fica na bandeja do sistema (perto do relógio). Duplo clique no ícone reabre; para encerrar, clique direito → **Sair**
+5. Fechar a janela (**×**) **não encerra o app** — ele fica na bandeja do sistema (perto do relógio). Duplo clique no ícone reabre; para encerrar, clique direito → **Sair**
 
 ## Favoritos
 
@@ -57,3 +57,16 @@ mvn exec:java -Dexec.mainClass=Launcher
 # fat JAR (gera rfid-virtual.jar na raiz)
 build.bat
 ```
+
+## Linux (.deb)
+
+```bash
+./build-deb.sh                                   # gera target/rfid-virtual_<versão>_amd64.deb
+sudo apt install ./target/rfid-virtual_*_amd64.deb
+```
+
+- Requer JDK 21+ (com `jpackage`), Maven, `dpkg-deb` e `fakeroot`. O pacote leva o Java embutido e instala em `/opt/rfid-virtual`, com atalho no menu de aplicativos
+- O JAR precisa ser gerado **no próprio Linux**: o JavaFX empacota os binários nativos do sistema em que o build foi feito
+- `favorites.txt` e `history.txt` ficam em `~/.config/rfid-virtual/` (a pasta atual só é usada se já tiver um `favorites.txt`)
+- Funciona em sessão **X11**. No Wayland o envio de teclas para outras aplicações não funciona
+- Sem bandeja do sistema (ex.: GNOME sem extensão de AppIndicator), fechar a janela encerra o app

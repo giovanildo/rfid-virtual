@@ -62,6 +62,7 @@ public class RfidVirtual extends Application {
     private List<String> poolRfids = new ArrayList<>();
     private List<String> recentRfids = new ArrayList<>();
     private Stage mainStage;
+    private boolean trayInstalled;
 
     /** Última janela externa (de outro processo) que teve o foco — alvo para devolver o foco. */
     private volatile HWND lastForegroundHwnd;
@@ -71,13 +72,12 @@ public class RfidVirtual extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         this.mainStage = stage;
-        Platform.setImplicitExit(false);
         robot = new Robot();
         ownPid = ProcessHandle.current().pid();
         if (IS_WINDOWS) startForegroundTracker();
-        String baseDir = System.getProperty("user.dir");
-        favoritesFile = Path.of(baseDir, "favorites.txt");
-        historyFile = Path.of(baseDir, "history.txt");
+        Path baseDir = resolveDataDir();
+        favoritesFile = baseDir.resolve("favorites.txt");
+        historyFile = baseDir.resolve("history.txt");
 
         txtRfid = new TextField();
         txtRfid.setPromptText("Número do cartão RFID");
@@ -89,7 +89,7 @@ public class RfidVirtual extends Application {
         btnSend.setOnAction(e -> sendRfid());
         btnSend.setFocusTraversable(false);
 
-        Button btnRandom = new Button("🎲 Aleatório");
+        Button btnRandom = new Button("Aleatório");
         btnRandom.setTooltip(new Tooltip("RFID aleatório do pool"));
         btnRandom.setStyle("-fx-font-size: 13px; -fx-padding: 6 14; -fx-background-radius: 6; -fx-cursor: hand;");
         btnRandom.setOnAction(e -> pickRandomAndSend());
@@ -129,9 +129,13 @@ public class RfidVirtual extends Application {
         lblPool = new Label();
         lblPool.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
 
-        Button btnCollapse = new Button("➖ Recolher");
+        Button btnCollapse = new Button("− Recolher");
         btnCollapse.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand;");
-        HBox titleRow = new HBox(lblTitle, new Region(), btnCollapse);
+        Button btnCloseFull = new Button("×");
+        btnCloseFull.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 6;");
+        btnCloseFull.setOnAction(e -> closeWindow());
+        HBox titleRow = new HBox(lblTitle, new Region(), btnCollapse, btnCloseFull);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(titleRow.getChildren().get(1), Priority.ALWAYS);
 
         VBox fullRoot = new VBox(10, titleRow, inputRow, masterAcessoRow, masterRecargaRow, recentRow, lblPool);
@@ -157,16 +161,16 @@ public class RfidVirtual extends Application {
             }
         });
 
-        Button btnMiniRandom = new Button("🎲 Aleatório");
+        Button btnMiniRandom = new Button("Aleatório");
         btnMiniRandom.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #475569; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 12px; -fx-padding: 6 12;");
         btnMiniRandom.setOnAction(e -> pickRandomAndSend());
         
-        Button btnExpand = new Button("➕");
-        btnExpand.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand; -fx-font-weight: bold;");
+        Button btnExpand = new Button("+");
+        btnExpand.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748b; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-size: 16px; -fx-padding: 0 6;");
         
-        Button btnClose = new Button("❌");
-        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;");
-        btnClose.setOnAction(e -> stage.hide());
+        Button btnClose = new Button("×");
+        btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 6;");
+        btnClose.setOnAction(e -> closeWindow());
         
         Label dragHandle = new Label(" ⣿ ");
         dragHandle.setStyle("-fx-text-fill: #94a3b8; -fx-cursor: move; -fx-font-size: 16px;");
@@ -208,11 +212,16 @@ public class RfidVirtual extends Application {
         stage.getIcons().add(createRfidIcon());
         stage.setAlwaysOnTop(true);
         
-        stage.setOnCloseRequest(e -> {
-            e.consume();
-            stage.hide();
-        });
-        setupSystemTray(stage);
+        trayInstalled = setupSystemTray(stage);
+        if (trayInstalled) {
+            // Fechar = esconder na bandeja. Sem bandeja (ex.: GNOME sem extensão),
+            // mantém o padrão do JavaFX: fechar a janela encerra o app.
+            Platform.setImplicitExit(false);
+            stage.setOnCloseRequest(e -> {
+                e.consume();
+                stage.hide();
+            });
+        }
 
         loadFavorites();
         loadHistory();
@@ -429,8 +438,39 @@ public class RfidVirtual extends Application {
         return canvas.snapshot(params, new WritableImage(size, size));
     }
 
-    private void setupSystemTray(Stage stage) {
-        if (!SystemTray.isSupported()) return;
+    /** Fecha a janela: esconde na bandeja se houver; senão encerra (evita processo órfão). */
+    private void closeWindow() {
+        if (trayInstalled) mainStage.hide(); else Platform.exit();
+    }
+
+    /**
+     * Pasta de favorites.txt / history.txt. Usa o diretório atual se já houver um
+     * favorites.txt nele (uso no Windows e em desenvolvimento); senão, no Linux/macOS,
+     * usa ~/.config/rfid-virtual — instalado via .deb, o diretório atual não é gravável.
+     */
+    private static Path resolveDataDir() {
+        Path cwd = Path.of(System.getProperty("user.dir"));
+        if (IS_WINDOWS || Files.exists(cwd.resolve("favorites.txt"))) return cwd;
+
+        String xdg = System.getenv("XDG_CONFIG_HOME");
+        Path configHome = (xdg != null && !xdg.isBlank())
+                ? Path.of(xdg)
+                : Path.of(System.getProperty("user.home"), ".config");
+        Path dir = configHome.resolve("rfid-virtual");
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            return cwd;
+        }
+        return dir;
+    }
+
+    /** @return true se o ícone foi adicionado à bandeja do sistema. */
+    private boolean setupSystemTray(Stage stage) {
+        if (!SystemTray.isSupported()) {
+            System.out.println("ℹ️ [RFID Virtual] Bandeja do sistema indisponível — fechar a janela encerra o app.");
+            return false;
+        }
 
         SystemTray tray = SystemTray.getSystemTray();
         java.awt.Image image = createAwtTrayIcon();
@@ -468,9 +508,11 @@ public class RfidVirtual extends Application {
         try {
             tray.add(trayIcon);
             System.out.println("✅ [RFID Virtual] Ícone adicionado à Bandeja do Sistema (System Tray) com sucesso!");
-            System.out.println("👉 Feche esta janela no 'X' e ela continuará rodando perto do relógio do Windows.");
+            System.out.println("👉 Feche esta janela no 'X' e ela continuará rodando na bandeja do sistema.");
+            return true;
         } catch (java.awt.AWTException e) {
             System.out.println("❌ Erro ao adicionar ícone na bandeja: " + e.getMessage());
+            return false;
         }
     }
 
