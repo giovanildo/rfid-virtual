@@ -62,6 +62,7 @@ public class RfidVirtual extends Application {
     private List<String> poolRfids = new ArrayList<>();
     private List<String> recentRfids = new ArrayList<>();
     private Stage mainStage;
+    private boolean trayInstalled;
 
     /** Última janela externa (de outro processo) que teve o foco — alvo para devolver o foco. */
     private volatile HWND lastForegroundHwnd;
@@ -71,13 +72,12 @@ public class RfidVirtual extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         this.mainStage = stage;
-        Platform.setImplicitExit(false);
         robot = new Robot();
         ownPid = ProcessHandle.current().pid();
         if (IS_WINDOWS) startForegroundTracker();
-        String baseDir = System.getProperty("user.dir");
-        favoritesFile = Path.of(baseDir, "favorites.txt");
-        historyFile = Path.of(baseDir, "history.txt");
+        Path baseDir = resolveDataDir();
+        favoritesFile = baseDir.resolve("favorites.txt");
+        historyFile = baseDir.resolve("history.txt");
 
         txtRfid = new TextField();
         txtRfid.setPromptText("Número do cartão RFID");
@@ -166,7 +166,10 @@ public class RfidVirtual extends Application {
         
         Button btnClose = new Button("❌");
         btnClose.setStyle("-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-cursor: hand;");
-        btnClose.setOnAction(e -> stage.hide());
+        btnClose.setOnAction(e -> {
+            // Sem bandeja, esconder a janela deixaria o processo órfão — encerra de vez.
+            if (trayInstalled) stage.hide(); else Platform.exit();
+        });
         
         Label dragHandle = new Label(" ⣿ ");
         dragHandle.setStyle("-fx-text-fill: #94a3b8; -fx-cursor: move; -fx-font-size: 16px;");
@@ -208,11 +211,16 @@ public class RfidVirtual extends Application {
         stage.getIcons().add(createRfidIcon());
         stage.setAlwaysOnTop(true);
         
-        stage.setOnCloseRequest(e -> {
-            e.consume();
-            stage.hide();
-        });
-        setupSystemTray(stage);
+        trayInstalled = setupSystemTray(stage);
+        if (trayInstalled) {
+            // Fechar = esconder na bandeja. Sem bandeja (ex.: GNOME sem extensão),
+            // mantém o padrão do JavaFX: fechar a janela encerra o app.
+            Platform.setImplicitExit(false);
+            stage.setOnCloseRequest(e -> {
+                e.consume();
+                stage.hide();
+            });
+        }
 
         loadFavorites();
         loadHistory();
@@ -429,8 +437,34 @@ public class RfidVirtual extends Application {
         return canvas.snapshot(params, new WritableImage(size, size));
     }
 
-    private void setupSystemTray(Stage stage) {
-        if (!SystemTray.isSupported()) return;
+    /**
+     * Pasta de favorites.txt / history.txt. Usa o diretório atual se já houver um
+     * favorites.txt nele (uso no Windows e em desenvolvimento); senão, no Linux/macOS,
+     * usa ~/.config/rfid-virtual — instalado via .deb, o diretório atual não é gravável.
+     */
+    private static Path resolveDataDir() {
+        Path cwd = Path.of(System.getProperty("user.dir"));
+        if (IS_WINDOWS || Files.exists(cwd.resolve("favorites.txt"))) return cwd;
+
+        String xdg = System.getenv("XDG_CONFIG_HOME");
+        Path configHome = (xdg != null && !xdg.isBlank())
+                ? Path.of(xdg)
+                : Path.of(System.getProperty("user.home"), ".config");
+        Path dir = configHome.resolve("rfid-virtual");
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            return cwd;
+        }
+        return dir;
+    }
+
+    /** @return true se o ícone foi adicionado à bandeja do sistema. */
+    private boolean setupSystemTray(Stage stage) {
+        if (!SystemTray.isSupported()) {
+            System.out.println("ℹ️ [RFID Virtual] Bandeja do sistema indisponível — fechar a janela encerra o app.");
+            return false;
+        }
 
         SystemTray tray = SystemTray.getSystemTray();
         java.awt.Image image = createAwtTrayIcon();
@@ -468,9 +502,11 @@ public class RfidVirtual extends Application {
         try {
             tray.add(trayIcon);
             System.out.println("✅ [RFID Virtual] Ícone adicionado à Bandeja do Sistema (System Tray) com sucesso!");
-            System.out.println("👉 Feche esta janela no 'X' e ela continuará rodando perto do relógio do Windows.");
+            System.out.println("👉 Feche esta janela no 'X' e ela continuará rodando na bandeja do sistema.");
+            return true;
         } catch (java.awt.AWTException e) {
             System.out.println("❌ Erro ao adicionar ícone na bandeja: " + e.getMessage());
+            return false;
         }
     }
 

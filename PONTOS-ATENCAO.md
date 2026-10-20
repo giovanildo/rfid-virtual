@@ -17,7 +17,11 @@ poderia ser sorteado e enviado como se fosse cartão comum de teste.
 #Master          →  #Master Acesso
 ```
 
-## 2. Bug teórico: janela órfã quando não há bandeja do sistema
+## 2. ~~Bug teórico: janela órfã quando não há bandeja do sistema~~ (corrigido)
+
+> **Corrigido**: o fechamento só é interceptado quando o ícone da bandeja é
+> instalado com sucesso; sem bandeja, fechar (inclusive pelo ❌) encerra o app.
+> Confirmado no GNOME/X11, onde a bandeja não está disponível.
 
 O app usa `Platform.setImplicitExit(false)` e consome o evento de fechamento da
 janela (esconde em vez de encerrar), contando com o ícone da bandeja do sistema

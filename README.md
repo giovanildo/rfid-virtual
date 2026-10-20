@@ -57,3 +57,16 @@ mvn exec:java -Dexec.mainClass=Launcher
 # fat JAR (gera rfid-virtual.jar na raiz)
 build.bat
 ```
+
+## Linux (.deb)
+
+```bash
+./build-deb.sh                                   # gera target/rfid-virtual_<versão>_amd64.deb
+sudo apt install ./target/rfid-virtual_*_amd64.deb
+```
+
+- Requer JDK 21+ (com `jpackage`), Maven, `dpkg-deb` e `fakeroot`. O pacote leva o Java embutido e instala em `/opt/rfid-virtual`, com atalho no menu de aplicativos
+- O JAR precisa ser gerado **no próprio Linux**: o JavaFX empacota os binários nativos do sistema em que o build foi feito
+- `favorites.txt` e `history.txt` ficam em `~/.config/rfid-virtual/` (a pasta atual só é usada se já tiver um `favorites.txt`)
+- Funciona em sessão **X11**. No Wayland o envio de teclas para outras aplicações não funciona
+- Sem bandeja do sistema (ex.: GNOME sem extensão de AppIndicator), fechar a janela encerra o app
