@@ -20,6 +20,7 @@ jpackage \
     --app-version "${VERSION}" \
     --description "Leitor RFID virtual para testes do sistema de catraca" \
     --vendor "UNILAB" \
+    --license-file LICENSE \
     --icon packaging/linux/rfid-virtual.png \
     --resource-dir packaging/linux \
     --input target/jpackage-input \

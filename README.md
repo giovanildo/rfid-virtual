@@ -70,3 +70,12 @@ sudo apt install ./target/rfid-virtual_*_amd64.deb
 - `favorites.txt` e `history.txt` ficam em `~/.config/rfid-virtual/` (a pasta atual só é usada se já tiver um `favorites.txt`)
 - Funciona em sessão **X11**. No Wayland o envio de teclas para outras aplicações não funciona
 - Sem bandeja do sistema (ex.: GNOME sem extensão de AppIndicator), fechar a janela encerra o app
+
+## Licença
+
+Copyright (C) 2026 Giovanildo
+
+Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da
+[GNU General Public License](LICENSE), versão 3 ou (a seu critério) qualquer versão posterior,
+conforme publicada pela Free Software Foundation. Ele é distribuído na esperança de ser útil,
+mas **sem nenhuma garantia**. Veja o arquivo [LICENSE](LICENSE) para os detalhes.
