@@ -3,6 +3,30 @@
 Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [1.3.1] - 2026-10-20
+
+### Adicionado
+- **Versão para Linux (.deb)**: `build-deb.sh` gera o pacote via `jpackage`, com Java
+  embutido, instalação em `/opt/rfid-virtual` e atalho "RFID Virtual" no menu
+- Ícone PNG do app (`packaging/linux/`)
+
+### Alterado
+- Fora do Windows, `favorites.txt` e `history.txt` ficam em `~/.config/rfid-virtual/`
+  (respeita `XDG_CONFIG_HOME`). O diretório atual continua valendo se já tiver um
+  `favorites.txt`, o que mantém o comportamento no Windows e em desenvolvimento
+- Botões com emoji (❌, ➕, ➖, 🎲) trocados por glifos de texto (×, +, −) — o JavaFX
+  não renderiza emojis coloridos no Linux e os botões ficavam invisíveis
+- `build.bat` aponta para o JAR 1.3.1
+
+### Corrigido
+- **Processo órfão sem bandeja do sistema** (PONTOS-ATENCAO item 2): o fechamento só é
+  interceptado quando o ícone da bandeja é instalado; sem bandeja, fechar encerra o app
+- A janela expandida ganhou botão de fechar (antes só dava para recolher)
+
+### Limitações conhecidas
+- No Linux funciona apenas em sessão **X11** (no Wayland o envio de teclas não chega às
+  outras aplicações) e usa o fallback minimiza → digita → restaura, sem devolução de foco
+
 ## [1.3.0] - 2026-07-16
 
 ### Adicionado

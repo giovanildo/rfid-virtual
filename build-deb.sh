@@ -21,6 +21,7 @@ jpackage \
     --description "Leitor RFID virtual para testes do sistema de catraca" \
     --vendor "UNILAB" \
     --icon packaging/linux/rfid-virtual.png \
+    --resource-dir packaging/linux \
     --input target/jpackage-input \
     --main-jar "${JAR}" \
     --main-class Launcher \

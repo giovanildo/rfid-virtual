@@ -1,6 +1,6 @@
-# Pontos de Atenção — v1.3.0
+# Pontos de Atenção — v1.3.1
 
-Registrado em 2026-07-15 (revisão da v1.2.0). Atualizado em 2026-07-16 (v1.3.0).
+Registrado em 2026-07-15 (revisão da v1.2.0). Atualizado em 2026-07-16 (v1.3.0). Atualizado em 2026-10-20 (v1.3.1 — item 2 corrigido).
 
 ## 1. Quebra de compatibilidade no `favorites.txt`
 

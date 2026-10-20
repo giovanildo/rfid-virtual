@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=RFID Virtual
+GenericName=Leitor RFID virtual
+Comment=Leitor RFID virtual para testes do sistema de catraca
+Exec=/opt/rfid-virtual/bin/rfid-virtual
+Icon=/opt/rfid-virtual/lib/rfid-virtual.png
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=rfid;catraca;cartao;
